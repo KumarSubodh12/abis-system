@@ -1,6 +1,9 @@
 # ⬡ ABIS — Adaptive Behavioral Intelligence System
 ### Resource Utilization Optimization Engine
 
+MADE BY KUMAR SUBODH
+
+
 ---
 
 ## 📁 Project Structure
