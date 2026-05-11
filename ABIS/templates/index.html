@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ABIS — Adaptive Behavioral Intelligence System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+/* ════════════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════════════*/
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#040812;
+  --bg2:#07101f;
+  --surface:#0c1a2e;
+  --surface2:#112240;
+  --border:#1a3a5c;
+  --accent:#00d4ff;
+  --accent2:#7c3aed;
+  --accent3:#06ffa5;
+  --warn:#f59e0b;
+  --danger:#ef4444;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --font-display:'Syne',sans-serif;
+  --font-mono:'Space Mono',monospace;
+  --font-body:'DM Sans',sans-serif;
+  --glow: 0 0 40px rgba(0,212,255,.25);
+  --glow2:0 0 40px rgba(124,58,237,.3);
+}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:15px;
+  line-height:1.6;
+  cursor:none;
+  overflow-x:hidden;
+}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
+
+/* ════════════════════════════════════════════════════════
+   CUSTOM CURSOR
+═══════════════════════════════════════════════════════════*/
+#cursor-ring{
+  position:fixed;width:36px;height:36px;border:2px solid var(--accent);
+  border-radius:50%;pointer-events:none;z-index:9999;
+  transition:transform .12s ease,border-color .2s;
+  mix-blend-mode:screen;
+}
+#cursor-dot{
+  position:fixed;width:6px;height:6px;background:var(--accent3);
+  border-radius:50%;pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);
+  transition:transform .06s linear;
+}
+body:hover #cursor-ring{opacity:1}
+.hoverable:hover ~ #cursor-ring,
+a:hover ~ #cursor-ring{border-color:var(--accent3);transform:translate(-50%,-50%) scale(1.6)}
+
+/* ════════════════════════════════════════════════════════
+   THREE.JS CANVAS BACKGROUND
+═══════════════════════════════════════════════════════════*/
+#hero-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:0;opacity:.6;pointer-events:none;
+}
+
+/* ════════════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════════════*/
+.page{position:relative;z-index:1}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:0 3rem;height:70px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(4,8,18,.7);backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(0,212,255,.1);
+}
+.nav-logo{
+  font-family:var(--font-display);font-size:1.3rem;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.02em;
+}
+.nav-links{display:flex;gap:2rem;list-style:none}
+.nav-links a{
+  color:var(--muted);text-decoration:none;font-size:.85rem;
+  font-family:var(--font-mono);letter-spacing:.05em;
+  transition:color .2s;position:relative;
+}
+.nav-links a::after{
+  content:'';position:absolute;bottom:-4px;left:0;width:0;height:1px;
+  background:var(--accent);transition:width .3s;
+}
+.nav-links a:hover{color:var(--accent)}
+.nav-links a:hover::after{width:100%}
+.nav-badge{
+  background:var(--accent3);color:#000;font-size:.7rem;
+  font-family:var(--font-mono);padding:4px 10px;border-radius:20px;font-weight:700;
+  animation:pulse-badge 2s infinite;
+}
+@keyframes pulse-badge{0%,100%{box-shadow:0 0 0 0 rgba(6,255,165,.4)}50%{box-shadow:0 0 0 8px rgba(6,255,165,0)}}
+
+/* ════════════════════════════════════════════════════════
+   HERO SECTION
+═══════════════════════════════════════════════════════════*/
+#hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:0 2rem;
+  position:relative;
+}
+.hero-eyebrow{
+  font-family:var(--font-mono);font-size:.75rem;letter-spacing:.2em;
+  color:var(--accent);text-transform:uppercase;margin-bottom:1.5rem;
+  opacity:0;animation:fadeUp .8s .3s forwards;
+}
+.hero-title{
+  font-family:var(--font-display);font-size:clamp(3rem,8vw,7rem);
+  font-weight:800;line-height:.95;letter-spacing:-.03em;
+  margin-bottom:1.5rem;
+  opacity:0;animation:fadeUp .8s .5s forwards;
+}
+.hero-title .line1{display:block}
+.hero-title .accent-word{
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 50%,var(--accent3) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:200% 200%;animation:gradShift 4s ease infinite;
+}
+@keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.hero-sub{
+  color:var(--muted);font-size:1rem;max-width:550px;margin:0 auto 3rem;
+  opacity:0;animation:fadeUp .8s .7s forwards;
+}
+.hero-cta{
+  display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;
+  opacity:0;animation:fadeUp .8s .9s forwards;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;color:#fff;padding:14px 32px;border-radius:6px;
+  font-family:var(--font-mono);font-size:.85rem;cursor:none;
+  position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;
+  letter-spacing:.05em;
+}
+.btn-primary::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--accent3),var(--accent));
+  opacity:0;transition:opacity .3s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:var(--glow)}
+.btn-primary:hover::before{opacity:1}
+.btn-primary span{position:relative;z-index:1}
+.btn-ghost{
+  background:transparent;border:1px solid var(--border);color:var(--text);
+  padding:14px 32px;border-radius:6px;font-family:var(--font-mono);
+  font-size:.85rem;cursor:none;transition:all .2s;letter-spacing:.05em;
+}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+
+/* Scroll indicator */
+.scroll-hint{
+  position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;
+  opacity:0;animation:fadeUp .8s 1.2s forwards;
+}
+.scroll-hint span{font-size:.7rem;font-family:var(--font-mono);color:var(--muted);letter-spacing:.1em}
+.scroll-line{width:1px;height:60px;background:linear-gradient(var(--accent),transparent);animation:scrollAnim 2s infinite}
+@keyframes scrollAnim{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+
+/* Stat pills */
+.hero-stats{
+  display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;
+  margin-bottom:3rem;
+  opacity:0;animation:fadeUp .8s 1s forwards;
+}
+.stat-pill{
+  border:1px solid var(--border);border-radius:50px;
+  padding:8px 20px;display:flex;align-items:center;gap:.6rem;
+  background:rgba(12,26,46,.6);backdrop-filter:blur(10px);
+}
+.stat-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);animation:blink 2s infinite}
+.stat-pill .dot.warn{background:var(--warn)}
+.stat-pill .dot.danger{background:var(--danger)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.stat-pill span{font-size:.78rem;font-family:var(--font-mono);color:var(--muted)}
+.stat-pill strong{font-size:.78rem;font-family:var(--font-mono);color:var(--text)}
+
+/* ════════════════════════════════════════════════════════
+   SECTIONS
+═══════════════════════════════════════════════════════════*/
+section{padding:6rem 0;position:relative}
+.container{max-width:1400px;margin:0 auto;padding:0 3rem}
+.section-label{
+  font-family:var(--font-mono);font-size:.7rem;letter-spacing:.2em;
+  color:var(--accent);text-transform:uppercase;margin-bottom:.75rem;
+  display:flex;align-items:center;gap:.75rem;
+}
+.section-label::after{content:'';height:1px;width:40px;background:var(--accent)}
+.section-title{
+  font-family:var(--font-display);font-size:clamp(2rem,4vw,3.5rem);
+  font-weight:800;line-height:1.05;letter-spacing:-.02em;margin-bottom:1rem;
+}
+.section-sub{color:var(--muted);max-width:500px}
+
+/* ════════════════════════════════════════════════════════
+   METRIC CARDS
+═══════════════════════════════════════════════════════════*/
+#overview{background:var(--bg2)}
+.metrics-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1.5rem;margin-top:3rem;
+}
+.metric-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.75rem;position:relative;overflow:hidden;
+  transition:transform .3s,border-color .3s,box-shadow .3s;
+  opacity:0;transform:translateY(30px);
+}
+.metric-card.visible{opacity:1;transform:translateY(0);transition:opacity .6s,transform .6s,border-color .3s,box-shadow .3s}
+.metric-card::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 60%,rgba(0,212,255,.04));
+  pointer-events:none;
+}
+.metric-card:hover{transform:translateY(-4px) !important;border-color:var(--accent);box-shadow:var(--glow)}
+.metric-icon{font-size:1.6rem;margin-bottom:1rem}
+.metric-label{font-size:.75rem;font-family:var(--font-mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.4rem}
+.metric-value{font-family:var(--font-display);font-size:2.4rem;font-weight:800;color:var(--text);line-height:1}
+.metric-value .unit{font-size:1rem;color:var(--muted);font-weight:400}
+.metric-change{margin-top:.5rem;font-size:.75rem;display:flex;align-items:center;gap:.3rem}
+.metric-change.up{color:var(--accent3)}
+.metric-change.down{color:var(--danger)}
+.metric-bar{height:3px;background:var(--surface2);border-radius:2px;margin-top:1rem;overflow:hidden}
+.metric-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width 1.5s cubic-bezier(.2,.8,.2,1)}
+
+/* ════════════════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════════════════*/
+#analytics{background:var(--bg)}
+.charts-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:3rem}
+.chart-wide{grid-column:1/-1}
+.chart-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.5rem;position:relative;
+  opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s;
+}
+.chart-card.visible{opacity:1;transform:translateY(0)}
+.chart-card:hover{border-color:rgba(0,212,255,.3)}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.chart-title{font-family:var(--font-display);font-size:1rem;font-weight:700}
+.chart-badge{
+  font-size:.65rem;font-family:var(--font-mono);padding:4px 10px;
+  border-radius:20px;background:rgba(0,212,255,.1);color:var(--accent);
+  border:1px solid rgba(0,212,255,.2);
+}
+.chart-canvas-wrap{position:relative;height:260px}
+.chart-canvas-wrap canvas{width:100%!important;height:100%!important}
+
+/* ════════════════════════════════════════════════════════
+   AI RESULTS PANEL
+═══════════════════════════════════════════════════════════*/
+#ai-results{background:var(--bg2)}
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:3rem}
+.result-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.75rem;
+  opacity:0;transform:translateY(30px);transition:opacity .6s,transform .6s;
+}
+.result-card.visible{opacity:1;transform:translateY(0)}
+.result-card:hover{border-color:rgba(124,58,237,.4);box-shadow:var(--glow2)}
+.result-card-full{grid-column:1/-1}
+.score-ring-wrap{display:flex;align-items:center;gap:2rem}
+.score-ring{position:relative;width:110px;height:110px;flex-shrink:0}
+.score-ring svg{transform:rotate(-90deg)}
+.score-ring-bg{fill:none;stroke:var(--surface2);stroke-width:6}
+.score-ring-fill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1.5s cubic-bezier(.2,.8,.2,1)}
+.score-ring-label{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.score-ring-num{font-family:var(--font-display);font-size:1.5rem;font-weight:800;line-height:1}
+.score-ring-sub{font-size:.6rem;font-family:var(--font-mono);color:var(--muted)}
+.score-info h3{font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:.4rem}
+.score-info p{font-size:.82rem;color:var(--muted)}
+
+/* Feature importance bars */
+.fi-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.fi-label{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);width:130px;flex-shrink:0}
+.fi-bar-bg{flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.fi-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width 1.5s cubic-bezier(.2,.8,.2,1)}
+.fi-val{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);width:45px;text-align:right}
+
+/* Anomaly counter */
+.anomaly-big{
+  font-family:var(--font-display);font-size:5rem;font-weight:800;
+  color:var(--danger);line-height:1;
+  text-shadow:0 0 40px rgba(239,68,68,.4);
+}
+.anomaly-detected{display:flex;flex-direction:column;gap:.75rem;margin-top:1rem;max-height:200px;overflow-y:auto}
+.anomaly-tag{
+  display:inline-flex;align-items:center;gap:.5rem;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+  border-radius:6px;padding:6px 12px;font-size:.75rem;font-family:var(--font-mono);
+  color:var(--danger);
+}
+.anomaly-tag .pulse{width:6px;height:6px;border-radius:50%;background:var(--danger);animation:blink 1s infinite}
+
+/* ════════════════════════════════════════════════════════
+   RECOMMENDATIONS
+═══════════════════════════════════════════════════════════*/
+#recommendations{background:var(--bg)}
+.rec-list{display:flex;flex-direction:column;gap:1rem;margin-top:3rem}
+.rec-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.5rem 1.75rem;display:flex;align-items:flex-start;gap:1.25rem;
+  position:relative;overflow:hidden;
+  opacity:0;transform:translateX(-30px);transition:opacity .6s,transform .6s;
+}
+.rec-card.visible{opacity:1;transform:translateX(0)}
+.rec-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.rec-card.critical::before{background:var(--danger)}
+.rec-card.warning::before{background:var(--warn)}
+.rec-card.info::before{background:var(--accent)}
+.rec-card.success::before{background:var(--accent3)}
+.rec-card:hover{transform:translateX(4px) !important}
+.rec-icon{font-size:1.4rem;flex-shrink:0;margin-top:.1rem}
+.rec-body h3{font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:.3rem}
+.rec-body p{font-size:.83rem;color:var(--muted)}
+.rec-tags{display:flex;gap:.5rem;margin-top:.6rem}
+.rec-tag{
+  font-size:.65rem;font-family:var(--font-mono);padding:3px 10px;
+  border-radius:20px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.15);
+  color:var(--muted);
+}
+
+/* ════════════════════════════════════════════════════════
+   3D CARDS ROW
+═══════════════════════════════════════════════════════════*/
+.cards-3d-row{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem;
+}
+.card-3d{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:2rem;text-align:center;
+  transition:transform .3s,box-shadow .3s,border-color .3s;
+  transform-style:preserve-3d;
+  opacity:0;animation:fadeUp .7s forwards;
+}
+.card-3d:nth-child(1){animation-delay:.1s}
+.card-3d:nth-child(2){animation-delay:.25s}
+.card-3d:nth-child(3){animation-delay:.4s}
+.card-3d.visible{opacity:1}
+.card-3d:hover{
+  transform:perspective(600px) rotateX(6deg) rotateY(-4deg) translateY(-8px);
+  box-shadow:0 30px 60px rgba(0,0,0,.5),var(--glow);
+  border-color:var(--accent);
+}
+.card-3d-icon{font-size:2.5rem;margin-bottom:1rem}
+.card-3d h3{font-family:var(--font-display);font-size:1.1rem;font-weight:700;margin-bottom:.5rem}
+.card-3d p{font-size:.82rem;color:var(--muted)}
+
+/* ════════════════════════════════════════════════════════
+   TRAIN PANEL
+═══════════════════════════════════════════════════════════*/
+#train-panel{
+  background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 100%);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.train-inner{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:3rem;display:grid;grid-template-columns:1fr auto;gap:3rem;align-items:center;
+  position:relative;overflow:hidden;
+}
+.train-inner::before{
+  content:'';position:absolute;right:-80px;top:-80px;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(124,58,237,.15),transparent 70%);
+  pointer-events:none;
+}
+.train-title{font-family:var(--font-display);font-size:1.8rem;font-weight:800;margin-bottom:.5rem}
+.train-sub{color:var(--muted);font-size:.88rem;margin-bottom:1.5rem}
+.train-controls{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.sample-input{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:10px 16px;border-radius:6px;font-family:var(--font-mono);font-size:.85rem;
+  width:140px;outline:none;transition:border-color .2s;
+}
+.sample-input:focus{border-color:var(--accent)}
+.train-status{
+  font-family:var(--font-mono);font-size:.78rem;color:var(--accent3);
+  display:flex;align-items:center;gap:.5rem;
+}
+.train-status .spin{
+  width:12px;height:12px;border:2px solid rgba(6,255,165,.3);border-top-color:var(--accent3);
+  border-radius:50%;animation:spin .8s linear infinite;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.train-right{text-align:right}
+.train-model-info{font-size:.75rem;font-family:var(--font-mono);color:var(--muted);line-height:1.8}
+.train-model-info span{color:var(--accent)}
+
+/* ════════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════════*/
+footer{
+  padding:3rem;text-align:center;border-top:1px solid var(--border);
+  background:var(--bg);
+}
+footer p{font-size:.78rem;font-family:var(--font-mono);color:var(--muted)}
+footer strong{color:var(--accent)}
+
+/* ════════════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════════════*/
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* Loading overlay */
+#loader{
+  position:fixed;inset:0;background:var(--bg);z-index:9998;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;
+  transition:opacity .5s;
+}
+.loader-logo{
+  font-family:var(--font-display);font-size:2.5rem;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.loader-bar{width:200px;height:2px;background:var(--surface2);border-radius:1px;overflow:hidden}
+.loader-bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent3));transition:width .1s linear}
+.loader-text{font-family:var(--font-mono);font-size:.75rem;color:var(--muted);letter-spacing:.1em}
+
+/* ════ RESPONSIVE ════ */
+@media(max-width:900px){
+  .charts-layout,.results-grid,.cards-3d-row{grid-template-columns:1fr}
+  .chart-wide,.result-card-full{grid-column:auto}
+  .train-inner{grid-template-columns:1fr}
+  nav{padding:0 1.5rem}
+  .container{padding:0 1.5rem}
+  .nav-links{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Custom Cursor -->
+<div id="cursor-ring"></div>
+<div id="cursor-dot"></div>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="loader-logo">ABIS</div>
+  <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+  <div class="loader-text" id="loader-text">INITIALIZING ENGINE...</div>
+</div>
+
+<!-- Three.js Background -->
+<canvas id="hero-canvas"></canvas>
+
+<div class="page">
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">⬡ ABIS</div>
+  <ul class="nav-links">
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#analytics">Analytics</a></li>
+    <li><a href="#ai-results">AI Results</a></li>
+    <li><a href="#recommendations">Optimize</a></li>
+  </ul>
+  <div class="nav-badge">LIVE MODEL</div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-eyebrow">Adaptive Behavioral Intelligence System v2.4</div>
+  <h1 class="hero-title">
+    <span class="line1">Resource</span>
+    <span class="accent-word">Intelligence</span>
+    <span class="line1">Engine</span>
+  </h1>
+  <p class="hero-sub">ML-powered behavioral analysis that detects inefficiencies, classifies system states, and generates optimization strategies in real-time.</p>
+  <div class="hero-stats">
+    <div class="stat-pill"><div class="dot"></div><strong>K-Means Clustering</strong><span>4 clusters</span></div>
+    <div class="stat-pill"><div class="dot warn"></div><strong>Random Forest</strong><span>Classifier</span></div>
+    <div class="stat-pill"><div class="dot danger"></div><strong>Isolation Forest</strong><span>Anomaly Detection</span></div>
+    <div class="stat-pill"><div class="dot"></div><strong>PCA</strong><span>2D Projection</span></div>
+  </div>
+  <div class="hero-cta">
+    <button class="btn-primary" onclick="trainModel()"><span>▶ Run AI Analysis</span></button>
+    <button class="btn-ghost" onclick="scrollTo('#overview')">View Dashboard</button>
+  </div>
+  <div class="scroll-hint"><span>SCROLL</span><div class="scroll-line"></div></div>
+</section>
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <div class="container">
+    <div class="section-label">System Overview</div>
+    <h2 class="section-title">Resource Metrics</h2>
+    <p class="section-sub">Real-time aggregated statistics from the analyzed behavioral dataset.</p>
+    <div class="metrics-grid" id="metrics-grid">
+      <div class="metric-card" data-delay="0">
+        <div class="metric-icon">⚡</div>
+        <div class="metric-label">Avg CPU Usage</div>
+        <div class="metric-value" id="m-cpu">—<span class="unit">%</span></div>
+        <div class="metric-change" id="m-cpu-c">Loading...</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-cpu" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card" data-delay="100">
+        <div class="metric-icon">🧠</div>
+        <div class="metric-label">Avg Memory Usage</div>
+        <div class="metric-value" id="m-mem">—<span class="unit">%</span></div>
+        <div class="metric-change" id="m-mem-c">Loading...</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-mem" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card" data-delay="200">
+        <div class="metric-icon">🔋</div>
+        <div class="metric-label">Avg Energy</div>
+        <div class="metric-value" id="m-energy">—<span class="unit"> U</span></div>
+        <div class="metric-change" id="m-energy-c">Loading...</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-energy" style="width:0%"></div></div>
+      </div>
+      <div class="metric-card" data-delay="300">
+        <div class="metric-icon">📊</div>
+        <div class="metric-label">Total Records</div>
+        <div class="metric-value" id="m-records">—</div>
+        <div class="metric-change up" id="m-records-c">Dataset size</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-records" style="width:100%"></div></div>
+      </div>
+      <div class="metric-card" data-delay="400">
+        <div class="metric-icon">🚨</div>
+        <div class="metric-label">Peak CPU</div>
+        <div class="metric-value" id="m-peak-cpu">—<span class="unit">%</span></div>
+        <div class="metric-change down">Peak detected</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-peak-cpu" style="width:0%;background:linear-gradient(90deg,var(--warn),var(--danger))"></div></div>
+      </div>
+      <div class="metric-card" data-delay="500">
+        <div class="metric-icon">💾</div>
+        <div class="metric-label">Peak Memory</div>
+        <div class="metric-value" id="m-peak-mem">—<span class="unit">%</span></div>
+        <div class="metric-change down">Peak detected</div>
+        <div class="metric-bar"><div class="metric-bar-fill" id="bar-peak-mem" style="width:0%;background:linear-gradient(90deg,var(--warn),var(--danger))"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH CARDS 3D -->
+<section style="padding:4rem 0;background:var(--bg2)">
+  <div class="container">
+    <div class="cards-3d-row">
+      <div class="card-3d">
+        <div class="card-3d-icon">🤖</div>
+        <h3>K-Means Clustering</h3>
+        <p>Unsupervised learning groups system states into 4 behavioral clusters: Idle, Normal, High-Load, Critical.</p>
+      </div>
+      <div class="card-3d">
+        <div class="card-3d-icon">🌲</div>
+        <h3>Random Forest</h3>
+        <p>Ensemble classifier trained on labeled behavioral data achieves high accuracy in predicting resource states.</p>
+      </div>
+      <div class="card-3d">
+        <div class="card-3d-icon">🔍</div>
+        <h3>Isolation Forest</h3>
+        <p>Anomaly detection isolates unusual resource spikes that deviate from established behavioral norms.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ANALYTICS -->
+<section id="analytics">
+  <div class="container">
+    <div class="section-label">Behavioral Analytics</div>
+    <h2 class="section-title">Usage Pattern Visualization</h2>
+    <p class="section-sub">Interactive charts revealing temporal patterns, correlations, and distribution of system states.</p>
+
+    <div class="charts-layout">
+
+      <div class="chart-card chart-wide">
+        <div class="chart-header">
+          <div class="chart-title">CPU · Memory · Energy Timeline</div>
+          <div class="chart-badge">TIME SERIES</div>
+        </div>
+        <div class="chart-canvas-wrap" style="height:280px">
+          <canvas id="chart-timeline"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Behavior Distribution</div>
+          <div class="chart-badge">CLASSIFICATION</div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-donut"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Hourly CPU Pattern</div>
+          <div class="chart-badge">24H PROFILE</div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-hourly"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">PCA Cluster Space</div>
+          <div class="chart-badge">K-MEANS · 2D</div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-pca"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Hourly Energy Profile</div>
+          <div class="chart-badge">ENERGY</div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-energy"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- AI RESULTS -->
+<section id="ai-results">
+  <div class="container">
+    <div class="section-label">AI Model Results</div>
+    <h2 class="section-title">Model Performance</h2>
+    <p class="section-sub">Metrics from trained ML models — classification accuracy, cluster quality, and anomaly statistics.</p>
+
+    <div class="results-grid">
+
+      <div class="result-card">
+        <div class="section-label" style="margin-bottom:.5rem">Classifier</div>
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle class="score-ring-bg" cx="55" cy="55" r="46"/>
+              <circle class="score-ring-fill" id="acc-ring" cx="55" cy="55" r="46"
+                stroke="url(#g1)"
+                stroke-dasharray="289.03"
+                stroke-dashoffset="289.03"/>
+              <defs>
+                <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#00d4ff"/>
+                  <stop offset="100%" stop-color="#06ffa5"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="score-ring-label">
+              <div class="score-ring-num" id="acc-val">—</div>
+              <div class="score-ring-sub">accuracy</div>
+            </div>
+          </div>
+          <div class="score-info">
+            <h3>Random Forest Classifier</h3>
+            <p>Trained on CPU, memory, energy, network, disk, and hour features. Predicts behavioral state with high precision.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="section-label" style="margin-bottom:.5rem">Clustering</div>
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle class="score-ring-bg" cx="55" cy="55" r="46"/>
+              <circle class="score-ring-fill" id="sil-ring" cx="55" cy="55" r="46"
+                stroke="url(#g2)"
+                stroke-dasharray="289.03"
+                stroke-dashoffset="289.03"/>
+              <defs>
+                <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#7c3aed"/>
+                  <stop offset="100%" stop-color="#00d4ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="score-ring-label">
+              <div class="score-ring-num" id="sil-val" style="font-size:1.1rem">—</div>
+              <div class="score-ring-sub">silhouette</div>
+            </div>
+          </div>
+          <div class="score-info">
+            <h3>K-Means Clustering (k=4)</h3>
+            <p>Silhouette score measures cluster separation quality. Higher values indicate more distinct behavioral groups.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="section-label" style="margin-bottom:1rem">Feature Importance</div>
+        <div id="fi-container"></div>
+      </div>
+
+      <div class="result-card">
+        <div class="section-label" style="margin-bottom:.5rem">Anomaly Detection</div>
+        <div class="anomaly-big" id="anomaly-count">—</div>
+        <div style="font-size:.8rem;color:var(--muted);font-family:var(--font-mono);margin-top:.3rem">anomalies detected by Isolation Forest</div>
+        <div class="anomaly-detected" id="anomaly-list"></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- TRAIN PANEL -->
+<section id="train-panel">
+  <div class="container">
+    <div class="train-inner">
+      <div>
+        <div class="train-title">Re-Train the AI Engine</div>
+        <div class="train-sub">Generate a fresh synthetic dataset and re-run the full ML pipeline. Adjust sample size to test scalability.</div>
+        <div class="train-controls">
+          <input type="number" class="sample-input" id="sample-count" value="2000" min="500" max="10000" step="500"/>
+          <button class="btn-primary" onclick="trainModel()"><span>▶ Train &amp; Analyze</span></button>
+          <div class="train-status" id="train-status">
+            <div class="spin" id="train-spin"></div>
+            <span id="train-msg">Ready</span>
+          </div>
+        </div>
+      </div>
+      <div class="train-right">
+        <div class="train-model-info">
+          Algorithm stack<br>
+          K-Means → <span>n_clusters=4</span><br>
+          Random Forest → <span>n_estimators=100</span><br>
+          Isolation Forest → <span>contamination=0.05</span><br>
+          PCA → <span>n_components=2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RECOMMENDATIONS -->
+<section id="recommendations">
+  <div class="container">
+    <div class="section-label">AI Recommendations</div>
+    <h2 class="section-title">Optimization Strategies</h2>
+    <p class="section-sub">Intelligent suggestions generated from detected behavioral patterns and anomalies.</p>
+    <div class="rec-list" id="rec-list"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>Built with <strong>Python · Scikit-learn · Flask · Chart.js · Three.js</strong> · ABIS v2.4 · Adaptive Behavioral Intelligence System</p>
+</footer>
+
+</div><!-- /page -->
+
+<script>
+/* ════════════════════════════════════════════════════════
+   THREE.JS PARTICLE BACKGROUND
+═══════════════════════════════════════════════════════════*/
+(function(){
+  const canvas = document.getElementById('hero-canvas');
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+  camera.position.z = 5;
+
+  // Particle geometry
+  const count = 1800;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  for(let i = 0; i < count; i++){
+    positions[i*3]   = (Math.random()-0.5)*20;
+    positions[i*3+1] = (Math.random()-0.5)*20;
+    positions[i*3+2] = (Math.random()-0.5)*20;
+    const t = Math.random();
+    if(t < 0.5){ colors[i*3]=0;colors[i*3+1]=0.83;colors[i*3+2]=1; }
+    else if(t < 0.75){ colors[i*3]=0.49;colors[i*3+1]=0.23;colors[i*3+2]=0.93; }
+    else{ colors[i*3]=0.02;colors[i*3+1]=1;colors[i*3+2]=0.65; }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  const mat = new THREE.PointsMaterial({size:.04, vertexColors:true, transparent:true, opacity:.8});
+  scene.add(new THREE.Points(geo,mat));
+
+  // Grid lines
+  const gridMat = new THREE.LineBasicMaterial({color:0x0a2540, transparent:true, opacity:.5});
+  for(let i=-5;i<=5;i++){
+    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i,-6,0),new THREE.Vector3(i,6,0)]);
+    scene.add(new THREE.Line(g,gridMat));
+    const g2=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-6,i,0),new THREE.Vector3(6,i,0)]);
+    scene.add(new THREE.Line(g2,gridMat));
+  }
+
+  let mouseX=0,mouseY=0;
+  document.addEventListener('mousemove',e=>{mouseX=(e.clientX/window.innerWidth-.5)*.5;mouseY=-(e.clientY/window.innerHeight-.5)*.5});
+
+  let t=0;
+  function animate(){
+    requestAnimationFrame(animate);
+    t+=0.001;
+    camera.position.x += (mouseX-camera.position.x)*.05;
+    camera.position.y += (mouseY-camera.position.y)*.05;
+    scene.children[0].rotation.y = t*.3;
+    scene.children[0].rotation.x = t*.1;
+    renderer.render(scene,camera);
+  }
+  animate();
+
+  window.addEventListener('resize',()=>{
+    camera.aspect=window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth,window.innerHeight);
+  });
+})();
+
+/* ════════════════════════════════════════════════════════
+   CUSTOM CURSOR
+═══════════════════════════════════════════════════════════*/
+const ring = document.getElementById('cursor-ring');
+const dot  = document.getElementById('cursor-dot');
+let rx=0,ry=0,dx=0,dy=0;
+document.addEventListener('mousemove',e=>{
+  dx=e.clientX; dy=e.clientY;
+  dot.style.left=dx+'px'; dot.style.top=dy+'px';
+});
+(function cursorLoop(){
+  rx+=(dx-rx)*.12; ry+=(dy-ry)*.12;
+  ring.style.left=(rx-18)+'px'; ring.style.top=(ry-18)+'px';
+  requestAnimationFrame(cursorLoop);
+})();
+document.querySelectorAll('a,button,input').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{ring.style.transform='scale(1.5)';ring.style.borderColor='var(--accent3)'});
+  el.addEventListener('mouseleave',()=>{ring.style.transform='scale(1)';ring.style.borderColor='var(--accent)'});
+});
+
+/* ════════════════════════════════════════════════════════
+   SCROLL ANIMATIONS
+═══════════════════════════════════════════════════════════*/
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const delay = e.target.dataset.delay||0;
+      setTimeout(()=>e.target.classList.add('visible'), +delay);
+    }
+  });
+},{threshold:.15});
+document.querySelectorAll('.metric-card,.chart-card,.result-card,.rec-card,.card-3d').forEach(el=>observer.observe(el));
+
+/* ════════════════════════════════════════════════════════
+   LOADER
+═══════════════════════════════════════════════════════════*/
+const loaderMsgs = ['INITIALIZING ENGINE...','LOADING ML MODELS...','GENERATING DATASET...','TRAINING NEURAL PIPELINE...','RENDERING INTERFACE...'];
+let lp=0;
+const fill=document.getElementById('loader-fill');
+const ltxt=document.getElementById('loader-text');
+function advanceLoader(){
+  if(lp<loaderMsgs.length){
+    ltxt.textContent=loaderMsgs[lp];
+    fill.style.width=((lp+1)/loaderMsgs.length*100)+'%';
+    lp++;
+    setTimeout(advanceLoader, 380+Math.random()*200);
+  } else {
+    setTimeout(()=>{
+      document.getElementById('loader').style.opacity='0';
+      setTimeout(()=>document.getElementById('loader').style.display='none',500);
+    },300);
+  }
+}
+advanceLoader();
+
+/* ════════════════════════════════════════════════════════
+   CHART HELPERS
+═══════════════════════════════════════════════════════════*/
+Chart.defaults.color='#64748b';
+Chart.defaults.borderColor='rgba(255,255,255,.04)';
+const COLORS=['#00d4ff','#06ffa5','#f59e0b','#ef4444','#7c3aed','#ec4899'];
+let charts={};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function buildTimeline(data){
+  destroyChart('timeline');
+  const ctx=document.getElementById('chart-timeline').getContext('2d');
+  const step=4;
+  const labels=data.timestamps.filter((_,i)=>i%step===0);
+  const cpu=data.cpu.filter((_,i)=>i%step===0);
+  const mem=data.memory.filter((_,i)=>i%step===0);
+  const en=data.energy.filter((_,i)=>i%step===0);
+  charts.timeline=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'CPU %',data:cpu,borderColor:'#00d4ff',borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:'rgba(0,212,255,.06)'},
+        {label:'Memory %',data:mem,borderColor:'#7c3aed',borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:'rgba(124,58,237,.06)'},
+        {label:'Energy',data:en,borderColor:'#06ffa5',borderWidth:1.5,pointRadius:0,tension:.4,fill:true,backgroundColor:'rgba(6,255,165,.04)'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12,font:{family:'Space Mono',size:10}}}},scales:{x:{ticks:{maxTicksLimit:8,font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+function buildDonut(dist){
+  destroyChart('donut');
+  const ctx=document.getElementById('chart-donut').getContext('2d');
+  const labels=Object.keys(dist);
+  const vals=Object.values(dist);
+  charts.donut=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:['#0a3d5c','#7c3aed','#f59e0b','#ef4444'],borderColor:'#0c1a2e',borderWidth:3,hoverBorderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'right',labels:{boxWidth:10,padding:14,font:{family:'Space Mono',size:10}}}}}
+  });
+}
+
+function buildHourly(data){
+  destroyChart('hourly');
+  const ctx=document.getElementById('chart-hourly').getContext('2d');
+  charts.hourly=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:data.hours.map(h=>h+':00'),
+      datasets:[
+        {label:'CPU %',data:data.cpu,backgroundColor:'rgba(0,212,255,.7)',borderRadius:3},
+        {label:'Memory %',data:data.memory,backgroundColor:'rgba(124,58,237,.6)',borderRadius:3}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:'Space Mono',size:10}}}},scales:{x:{ticks:{font:{family:'Space Mono',size:8},maxRotation:0}},y:{ticks:{font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+function buildPCA(data){
+  destroyChart('pca');
+  const ctx=document.getElementById('chart-pca').getContext('2d');
+  const clusterColors=['#00d4ff','#06ffa5','#f59e0b','#ef4444'];
+  const clusterNames=['Cluster 0','Cluster 1','Cluster 2','Cluster 3'];
+  const datasets=clusterNames.map((name,ci)=>({
+    label:name,
+    data:data.pca_x.map((x,i)=>data.clusters[i]===ci?{x,y:data.pca_y[i]}:null).filter(Boolean),
+    backgroundColor:clusterColors[ci]+'aa',
+    pointRadius:3,
+    pointHoverRadius:5,
+  }));
+  charts.pca=new Chart(ctx,{
+    type:'scatter',
+    data:{datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:'Space Mono',size:9}}}},scales:{x:{ticks:{font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+function buildEnergy(data){
+  destroyChart('energy');
+  const ctx=document.getElementById('chart-energy').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,240);
+  grad.addColorStop(0,'rgba(6,255,165,.3)');
+  grad.addColorStop(1,'rgba(6,255,165,.0)');
+  charts.energy=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:data.hours.map(h=>h+':00'),
+      datasets:[{label:'Energy Units',data:data.energy,borderColor:'#06ffa5',borderWidth:2,pointRadius:3,pointBackgroundColor:'#06ffa5',tension:.5,fill:true,backgroundColor:grad}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{family:'Space Mono',size:10}}}},scales:{x:{ticks:{font:{family:'Space Mono',size:8},maxRotation:0}},y:{ticks:{font:{family:'Space Mono',size:9}},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   DATA FETCH & RENDER
+═══════════════════════════════════════════════════════════*/
+async function loadAll(){
+  try{
+    const [summary,results,timeseries,clusters,hourly,recs,dist]=await Promise.all([
+      fetch('/api/summary').then(r=>r.json()),
+      fetch('/api/results').then(r=>r.json()),
+      fetch('/api/timeseries').then(r=>r.json()),
+      fetch('/api/clusters').then(r=>r.json()),
+      fetch('/api/hourly').then(r=>r.json()),
+      fetch('/api/recommendations').then(r=>r.json()),
+      fetch('/api/label_distribution').then(r=>r.json()),
+    ]);
+
+    // Metrics
+    document.getElementById('m-cpu').innerHTML=summary.avg_cpu+'<span class="unit">%</span>';
+    document.getElementById('m-mem').innerHTML=summary.avg_memory+'<span class="unit">%</span>';
+    document.getElementById('m-energy').innerHTML=summary.avg_energy+'<span class="unit"> U</span>';
+    document.getElementById('m-records').innerHTML=summary.total_records.toLocaleString();
+    document.getElementById('m-peak-cpu').innerHTML=summary.peak_cpu+'<span class="unit">%</span>';
+    document.getElementById('m-peak-mem').innerHTML=summary.peak_memory+'<span class="unit">%</span>';
+    document.getElementById('m-cpu-c').className='metric-change '+(summary.avg_cpu>70?'down':'up');
+    document.getElementById('m-cpu-c').textContent=(summary.avg_cpu>70?'⚠ Above threshold':'✓ Normal range');
+    document.getElementById('m-mem-c').className='metric-change '+(summary.avg_memory>75?'down':'up');
+    document.getElementById('m-mem-c').textContent=(summary.avg_memory>75?'⚠ High pressure':'✓ Acceptable');
+    document.getElementById('m-energy-c').className='metric-change '+(summary.avg_energy>80?'down':'up');
+    document.getElementById('m-energy-c').textContent=(summary.avg_energy>80?'⚠ High consumption':'✓ Efficient');
+
+    setTimeout(()=>{
+      document.getElementById('bar-cpu').style.width=summary.avg_cpu+'%';
+      document.getElementById('bar-mem').style.width=summary.avg_memory+'%';
+      document.getElementById('bar-energy').style.width=Math.min(summary.avg_energy,100)+'%';
+      document.getElementById('bar-peak-cpu').style.width=summary.peak_cpu+'%';
+      document.getElementById('bar-peak-mem').style.width=summary.peak_memory+'%';
+    },400);
+
+    // AI results
+    const acc=results.classification_accuracy;
+    document.getElementById('acc-val').textContent=acc+'%';
+    const circumference=289.03;
+    setTimeout(()=>{
+      document.getElementById('acc-ring').style.strokeDashoffset=(circumference*(1-acc/100));
+      const sil=results.silhouette_score;
+      document.getElementById('sil-val').textContent=sil;
+      document.getElementById('sil-ring').style.strokeDashoffset=(circumference*(1-sil));
+    },800);
+
+    // Feature importance
+    const fi=results.feature_importance;
+    const fiMax=Math.max(...Object.values(fi));
+    const fiHtml=Object.entries(fi).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+      <div class="fi-row">
+        <div class="fi-label">${k.replace('_',' ')}</div>
+        <div class="fi-bar-bg"><div class="fi-bar-fill" style="width:0%" data-w="${(v/fiMax*100).toFixed(1)}%"></div></div>
+        <div class="fi-val">${(v*100).toFixed(1)}%</div>
+      </div>`).join('');
+    document.getElementById('fi-container').innerHTML=fiHtml;
+    setTimeout(()=>document.querySelectorAll('.fi-bar-fill').forEach(el=>el.style.width=el.dataset.w),600);
+
+    // Anomalies
+    document.getElementById('anomaly-count').textContent=results.anomaly_count;
+    const anomalyList=document.getElementById('anomaly-list');
+    const anomalySamples=timeseries.timestamps.filter((_,i)=>timeseries.anomalies&&timeseries.anomalies[i]).slice(0,8);
+    anomalyList.innerHTML=anomalySamples.map(t=>`<div class="anomaly-tag"><div class="pulse"></div>${t}</div>`).join('');
+
+    // Charts
+    buildTimeline(timeseries);
+    buildDonut(dist);
+    buildHourly(hourly);
+    buildPCA(clusters);
+    buildEnergy(hourly);
+
+    // Recommendations
+    const recIcons={critical:'🚨',warning:'⚠️',info:'💡',success:'✅'};
+    document.getElementById('rec-list').innerHTML=recs.map((r,i)=>`
+      <div class="rec-card ${r.level}" style="transition-delay:${i*80}ms">
+        <div class="rec-icon">${recIcons[r.level]||'💡'}</div>
+        <div class="rec-body">
+          <h3>${r.title}</h3>
+          <p>${r.desc}</p>
+          <div class="rec-tags">
+            <div class="rec-tag">Impact: ${r.impact}</div>
+            <div class="rec-tag">Effort: ${r.effort}</div>
+          </div>
+        </div>
+      </div>`).join('');
+    setTimeout(()=>document.querySelectorAll('.rec-card').forEach(el=>{
+      observer.observe(el);
+      el.classList.add('visible');
+    }),100);
+
+  } catch(e){
+    console.error('Load error:',e);
+  }
+}
+
+async function trainModel(){
+  const n=parseInt(document.getElementById('sample-count').value)||2000;
+  const spin=document.getElementById('train-spin');
+  const msg=document.getElementById('train-msg');
+  spin.style.display='block';
+  msg.textContent='Training…';
+  try{
+    await fetch('/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_samples:n})});
+    msg.textContent='✓ Done — reloading data';
+    await loadAll();
+    msg.textContent='✓ Analysis complete';
+  } catch(e){
+    msg.textContent='✗ Server not connected';
+  }
+  spin.style.display='none';
+}
+
+function scrollTo(sel){document.querySelector(sel).scrollIntoView({behavior:'smooth'})}
+
+// Initial load
+window.addEventListener('load',()=>{
+  setTimeout(loadAll, 2000);
+});
+</script>
+</body>
+</html>
